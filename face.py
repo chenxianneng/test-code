@@ -40,6 +40,10 @@ def get_girl_name(path):
         results = face_recognition.compare_faces([girl['face_encoding']], unknown_face_encoding)
         if results[0] == True:
             #print(girl['name'])
+            face_distances = face_recognition.face_distance([girl['face_encoding']], unknown_face_encoding)
+            print(face_distances)
+            if face_distances > 0.35:
+                continue
             return girl['name']
 
     return '没有找到这个女优'
