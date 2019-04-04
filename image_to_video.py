@@ -3,8 +3,8 @@ import os.path
 import glob
 
 def make_square(img, fill_color=(0, 0, 0, 0)):
-    screen_width = 1366.0
-    screen_height = 768.0
+    screen_width = 1920.0
+    screen_height = 1080.0
 
     x, y = img.size
     new_x, new_y = 0, 0
@@ -60,6 +60,11 @@ def run(directory, back_ground_music, out_dir):
              for m in file_list_sorted]
 
     concat_clip = concatenate_videoclips(clips, method="compose")
-    concat_clip.write_videofile(out_dir + "output.mp4", fps=fps, audio=back_ground_music)
+    concat_clip.write_videofile(out_dir + "output.mp4", fps=fps)
 
+    # if os.path.isdir(directory):
+    #     import shutil
+    #     shutil.rmtree(directory)
+    # os.makedirs(directory)
+    
 run('D:/development/test-coder/youtube/input/', 'd:/development/test-coder/youtube/back_ground.mp3', 'D:/development/test-coder/youtube/output/')
