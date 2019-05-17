@@ -35,6 +35,12 @@ def run(driver, save_dir, url ,browser='chrome'):
             tr.click()
             #点击进入执行信息
             #webdriver.ActionChains(driver).move_to_element(elem).click(elem).perform()
+            parent = tr.find_element_by_xpath('..')
+            record_date = parent.find_element_by_xpath("following::td")
+            temp = record_date.get_attribute('innerText').replace('(', '').replace(')', '').split('-')
+            print(temp)
+
+            date = datetime.datetime(int('20' + temp[0]), int(temp[1]), int(temp[2]))
 
             title = tr.get_attribute('title')
             print(title)
@@ -46,7 +52,10 @@ def run(driver, save_dir, url ,browser='chrome'):
             content_elem = driver.find_element_by_id('tab_content')
             temp = content_elem.get_attribute('innerHTML')
 
-            my_set.insert({'name':title, 'content':content_elem.get_attribute('innerText'), 'page_source':temp})
+            my_set.insert({'name':title, \
+                'content':content_elem.get_attribute('innerText'), \
+                'page_source':temp, \
+                'date': date})
             
             #text = content.encode("gbk","ignore").decode("gbk")
     
@@ -76,19 +85,39 @@ dir_part_two = make_dir('保监局处罚')
 
 # driver = utils.ChromeBrowser()
 # run(driver, dir_part_one, 'http://bxjg.circ.gov.cn/web/site0/tab5240/')
-#run(driver, dir_part_two, 'http://bxjg.circ.gov.cn/web/site0/tab5241/')
+# #run(driver, dir_part_two, 'http://bxjg.circ.gov.cn/web/site0/tab5241/')
+# driver.quit()
 
 
-result = my_set.find({'content':{'$regex':"杨帆"}})
-print(result.count())
-for item in result:
+# result = my_set.find({'content':{'$regex':"杨帆"}})
+# print(result.count())
+# for item in result:
+#     print(item['name'])
+#     file_name = 'D:/IPA/external/search_result.html'
+#     with open(file_name, "w") as f:
+#         encoding = '<meta http-equiv="Content-Type" content="text/html; charset=gb2312">'
+#         f.write(encoding)
+#         f.write(item['page_source'].replace('黑体', '')) #.encode("gbk","ignore").decode("gbk"))
+#         break
+
+# import pdfkit
+# pdfkit.from_file('D:/IPA/external/search_result.html', 'search_result.pdf')
+
+def search(text, date_start, date_end):
+    for item in my_set.find( {'$and': [ {'date': {'$gte': date_start, '$lt': date_end}}, \
+        {'content':{'$regex': text}} \
+        ] } ):
+
+        print(item['name']) 
+
+
+start = datetime.datetime(2018, 1, 1)
+end = datetime.datetime(2018, 6, 1)
+a = my_set.find({'date': {'$gte': start, '$lt': end}})
+
+print(start)
+print(end)
+
+print(a.count())
+for item in my_set.find({'date': {'$gte': start, '$lt': end}}):
     print(item['name'])
-    file_name = 'D:/IPA/external/search_result.html'
-    with open(file_name, "w") as f:
-        encoding = '<meta http-equiv="Content-Type" content="text/html; charset=gb2312">'
-        f.write(encoding)
-        f.write(item['page_source'].replace('黑体', '')) #.encode("gbk","ignore").decode("gbk"))
-        break
-
-import pdfkit
-pdfkit.from_file('D:/IPA/external/search_result.html', 'search_result.pdf')

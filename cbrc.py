@@ -51,7 +51,10 @@ def run(driver, save_dir, url, limit_date=None , browser='chrome'):
         for a_tag in a_tags:
             parent = a_tag.find_element_by_xpath('..')
             record_date = parent.find_element_by_xpath("following::td")
-            print(record_date)
+            temp = record_date.get_attribute('innerText').split('-')
+            print(temp)
+            
+            date = datetime.datetime(int(temp[0]), int(temp[1]), int(temp[2]))
 
             if limit_date is not None and stop_catche(limit_date, record_date):
                 driver.quit()
@@ -81,7 +84,10 @@ def run(driver, save_dir, url, limit_date=None , browser='chrome'):
             # f.close()
             # return 
 
-            my_set.insert({'name':title, 'content':content_elem.get_attribute('innerText'), 'page_source':temp})
+            my_set.insert({'name': title, \
+                'content': content_elem.get_attribute('innerText'), \
+                'page_source': temp, \
+                'date': date})
             
             #关闭标签
             driver.close()
@@ -100,18 +106,18 @@ dir_part_two = make_dir('银监局')
 dir_part_three = make_dir('银监分局')
 
 
-
 # driver = utils.ChromeBrowser()
 # run(driver, dir_part_one, 'http://www.cbrc.gov.cn/chinese/home/docViewPage/110002.html')
 # # run(driver, dir_part_two, 'http://www.cbrc.gov.cn/zhuanti/xzcf/get2and3LevelXZCFDocListDividePage//1.html')
 # # run(driver, dir_part_three, 'http://www.cbrc.gov.cn/zhuanti/xzcf/get2and3LevelXZCFDocListDividePage//2.html')
 # driver.quit()
 
-#my_set.create_index([('content', 'text')])
-#my_set.create_index([('content', 'text')])
-#my_set.create_index('content')
-#a = my_set.find({"$text": {"$search": '2018'}})
-#a = my_set.find({"$text": {"$search": '"（八）会计核算管理薄弱"'}})
+def search(text, date_start, date_end):
+    for item in my_set.find( {'$and': [ {'date': {'$gte': date_start, '$lt': date_end}}, \
+        {'content':{'$regex': text}} \
+        ] } ):
+
+        print(item['name'])    
 
 result = my_set.find({'content':{'$regex':"王凯"}})
 print(result.count())
@@ -124,5 +130,22 @@ for item in result:
         f.write(item['page_source'].replace('黑体', '')) #.encode("gbk","ignore").decode("gbk"))
         break
 
-import pdfkit
-pdfkit.from_file('D:/IPA/external/search_result.html', 'search_result.pdf')
+# import pdfkit
+# pdfkit.from_file('D:/IPA/external/search_result.html', 'search_result.pdf')
+
+start = datetime.datetime(2018, 1, 1)
+end = datetime.datetime(2018, 6, 1)
+# a = my_set.find({'date': {'$gte': start, '$lt': end}})
+
+# print(start)
+# print(end)
+
+# print(a.count())
+# for item in my_set.find({'date': {'$gte': start, '$lt': end}}):
+#     print(item['name'])
+
+for item in my_set.find( {'$and': [ {'date': {'$gte': start, '$lt': end}}, \
+    {'content':{'$regex':"中国银行保险监督管理委员会"}} \
+    ] } ):
+
+    print(item['name'])    

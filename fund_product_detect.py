@@ -80,24 +80,26 @@ def compare_pdf(contract_pdf_path, approval_pdf_path):
         company = results[0].strip()
         print(company)
 
-    return company, product        
-
+    return company, product
 
 company, product = compare_pdf('D:/IPA/external/基金对比资料/基金对比资料/广发9只基金/广发中证军工ETF联接C/基金合同.pdf', \
     'D:/IPA/external/基金对比资料/基金对比资料/广发9只基金/广发中证军工ETF联接C/招募说明书201801.pdf')
- 
-w_workbook = load_workbook('d:/IPA/external/template.xlsx')
-sheets = w_workbook.sheetnames
-w_sheet = w_workbook[sheets[0]]
 
-w_sheet.cell(row = 6, column = 2).value = product.replace(" ", "").replace("\n", "")
-content = '合规审查意见（法律合规部填写）：\n \n   根据业务侧提供的相关资料，本产品无重大法律合规风险，合规意见如下：\n   \n    \
-    一、本产品发行人为' + company + '，具有保监会颁发保险公司法人许可证，根据《关于规范商业银行代理销售业务的通知》（银监发2016[24]号）规定：商业银行可接受国务院证券监督管理机构管理并持有金融牌照的金融机构委托，在本行渠道向客户推介、销售合作机构依法发行的金融产品。\n      \n     \
-    二、经业务侧尽调，可于银保监会网站查询该产品。属于依法发行的保险产品。\n\n     \
-    三、合规提示\n    1.交互页面及关于产品功能的描述需经合作方确认；2.投诉、理赔需由合作方负责，并在合同中约定双方权责义务关系。\n    \n'
-w_sheet.cell(row = 7, column = 1).value = content
+def run(company, product, code):  
+    template_path = utils.get_working_dir() + '/template.xlsx'
+    w_workbook = load_workbook(template_path)
+    sheets = w_workbook.sheetnames
+    w_sheet = w_workbook[sheets[0]]
 
-date = time.strftime("%Y-%m-%d", time.localtime()) 
-w_sheet.cell(row = 19, column = 2).value = date
+    w_sheet.cell(row = 6, column = 2).value = product.replace(" ", "").replace("\n", "")
+    content = '合规审查意见（法律合规部填写）：\n \n   根据业务侧提供的相关资料，本产品无重大法律合规风险，合规意见如下：\n   \n    \
+        一、本产品发行人为' + company + '，具有保监会颁发保险公司法人许可证，根据《关于规范商业银行代理销售业务的通知》（银监发2016[24]号）规定：商业银行可接受国务院证券监督管理机构管理并持有金融牌照的金融机构委托，在本行渠道向客户推介、销售合作机构依法发行的金融产品。\n      \n     \
+        二、经业务侧尽调，可于银保监会网站查询该产品。属于依法发行的保险产品。\n\n     \
+        三、合规提示\n    1.交互页面及关于产品功能的描述需经合作方确认；2.投诉、理赔需由合作方负责，并在合同中约定双方权责义务关系。\n    \n'
+    w_sheet.cell(row = 7, column = 1).value = content
 
-w_workbook.save('d:/IPA/external/report.xlsx')
+    date = time.strftime("%Y-%m-%d", time.localtime())
+    w_sheet.cell(row = 19, column = 2).value = date
+
+    save_path = utils.get_working_dir()  + '/合规评审表' + code + '(' + product + ')'
+    w_workbook.save(save_path)
