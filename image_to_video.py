@@ -44,10 +44,10 @@ from moviepy.audio.fx import all
 import random
 
 def run(directory, back_ground_dir, out_dir):
-    if os.path.isdir(out_dir):
-        import shutil
-        shutil.rmtree(out_dir)
-    os.makedirs(out_dir)
+    # if os.path.isdir(out_dir):
+    #     import shutil
+    #     shutil.rmtree(out_dir)
+    # os.makedirs(out_dir)
 
     base_dir = os.path.realpath(directory)
     #print(base_dir)
@@ -66,7 +66,12 @@ def run(directory, back_ground_dir, out_dir):
     file_list = glob.glob(out_dir +  '*.jpg')  # Get all the pngs in the current directory
     file_list_sorted = natsorted(file_list, reverse=False)  # Sort the images
 
-    clips = [ImageClip(m).set_duration(4)
+    music = AudioFileClip(back_ground_music)
+    print('................................', music.duration)
+    video_length = music.duration - 5
+    duratio_time = video_length / len(file_list)
+
+    clips = [ImageClip(m).set_duration(duratio_time)
              for m in file_list_sorted]
 
     concat_clip = concatenate_videoclips(clips, method="compose")
@@ -76,15 +81,15 @@ def run(directory, back_ground_dir, out_dir):
     #audio = afx.audio_loop(music)
     #concat_clip.set_audio(audio)
 
-    music = AudioFileClip(back_ground_music)
+    
     audio = afx.audio_loop(music, duration=concat_clip.duration)
     result_video = concat_clip.set_audio(audio)
     
     result_video.write_videofile(out_dir + "output.mp4", fps=fps)
 
-    if os.path.isdir(directory):
-        import shutil
-        shutil.rmtree(directory)
-    os.makedirs(directory)
+    # if os.path.isdir(directory):
+    #     import shutil
+    #     shutil.rmtree(directory)
+    # os.makedirs(directory)
     
-run('f:/test-code/youtube/input/', 'f:/test-code/youtube/music/', 'f:/test-code/youtube/output/')
+run('D:/development/image/', 'D:/development/image/', 'D:/development/image/')
