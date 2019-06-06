@@ -27,8 +27,8 @@ def convertjpg(jpgfile, outdir):
     img.convert("RGBA")
 
     x, y = img.size
-    if x < 500 or y < 500:
-        return
+    # if x < 500 or y < 500:
+    #     return
     
     result = make_square(img)
     #result.show()
@@ -57,18 +57,26 @@ def run(directory, back_ground_dir, out_dir):
     music_num = random.randint(0,len(music_list) - 1)
     back_ground_music = music_list[music_num]
     
-    for jpgfile in glob.glob(directory + "*.jpg"):
+    image_list = glob.glob(directory + "*.jpg")
+    temp = glob.glob(directory + "*.jpeg")
+    temp2 = glob.glob(directory + "*.png")
+    image_list.extend(temp)
+    image_list.extend(temp2)
+    for jpgfile in image_list:
         #print(jpgfile)
         convertjpg(jpgfile, out_dir)
     
     fps = 24
-
-    file_list = glob.glob(out_dir +  '*.jpg')  # Get all the pngs in the current directory
+    file_list = glob.glob(out_dir +  '*.jpg')
+    temp = glob.glob(out_dir + "*.jpeg")
+    temp2 = glob.glob(out_dir + "*.png")
+    file_list.extend(temp)
+    file_list.extend(temp2)
     file_list_sorted = natsorted(file_list, reverse=False)  # Sort the images
 
     music = AudioFileClip(back_ground_music)
     print('................................', music.duration)
-    video_length = music.duration - 5
+    video_length = music.duration# - 5
     duratio_time = video_length / len(file_list)
 
     clips = [ImageClip(m).set_duration(duratio_time)
@@ -92,4 +100,4 @@ def run(directory, back_ground_dir, out_dir):
     #     shutil.rmtree(directory)
     # os.makedirs(directory)
     
-run('D:/development/image/', 'D:/development/image/', 'D:/development/image/')
+run('F:/test-code/youtube/video/', 'F:/test-code/youtube/video/', 'F:/test-code/youtube/video/')

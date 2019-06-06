@@ -123,5 +123,5 @@ def save_excel(data):
 
     w_workbook.save('result.xlsx')
 
-result = run('cxn8801@gmail.com', 'cxn8801cxn')
+result = run('账号', '密码')
 save_excel(result)

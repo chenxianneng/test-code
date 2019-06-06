@@ -6,6 +6,7 @@ import time
 import os
 import datetime
 from pymongo import MongoClient
+import pdfkit
 
 conn = MongoClient('localhost', 27017)
 db = conn.mydb
@@ -37,7 +38,7 @@ def stop_catche(limit_date, record_date):
 
     return record_date < limit_date
         
-def run(driver, save_dir, url, limit_date=None , browser='chrome'):    
+def catch_data(driver, url, limit_date=None , browser='chrome'):    
     driver.get(url)
     #driver.maximize_window()
     driver.implicitly_wait(10)
@@ -48,104 +49,129 @@ def run(driver, save_dir, url, limit_date=None , browser='chrome'):
         #trs = elem.find_elements_by_xpath(".//a")
         a_tags = elem.find_elements_by_xpath(".//a[@class='STYLE8']")
         print(len(a_tags))
-        for a_tag in a_tags:
-            parent = a_tag.find_element_by_xpath('..')
-            record_date = parent.find_element_by_xpath("following::td")
-            temp = record_date.get_attribute('innerText').split('-')
-            print(temp)
-            
-            date = datetime.datetime(int(temp[0]), int(temp[1]), int(temp[2]))
-
-            if limit_date is not None and stop_catche(limit_date, record_date):
-                driver.quit()
-                return
-            
-            a_tag.click()
-            title = a_tag.get_attribute('title')
-            print(title)
-
-            #选择标签
-            driver.switch_to_window(driver.window_handles[1])
-
-            content = driver.page_source
-            #page_source = content.encode("gbk","ignore").decode("gbk")
-            
-            content_elem = driver.find_element_by_class_name('n_cent')
-            temp = content_elem.get_attribute('innerHTML') #.encode("gbk","ignore").decode("gbk")
-
-            # file_name = save_dir + title + '.html'
-            # f = open(file_name, "w")
-            # f.write(text)
-            # f.close()
-
-            # file_name = "test.txt"
-            # f = open(file_name, "w")
-            # f.write(content_elem.get_attribute('innerText').encode("gbk","ignore").decode("gbk"))
-            # f.close()
-            # return 
-
-            my_set.insert({'name': title, \
-                'content': content_elem.get_attribute('innerText'), \
-                'page_source': temp, \
-                'date': date})
-            
-            #关闭标签
-            driver.close()
-            driver.switch_to_window(driver.window_handles[0])
-
-            time.sleep(0.5)
-
         try:
-            elem = driver.find_element_by_xpath('//*[text()="下页"]')
-            elem.click()
+            for a_tag in a_tags:
+                parent = a_tag.find_element_by_xpath('..')
+                record_date = parent.find_element_by_xpath("following::td")
+                temp = record_date.get_attribute('innerText').split('-')
+                # print(temp)
+                
+                date = datetime.datetime(int(temp[0]), int(temp[1]), int(temp[2]))
+
+                if limit_date is not None and stop_catche(limit_date, record_date):
+                    driver.quit()
+                    return
+                
+                
+                title = a_tag.get_attribute('title')
+                temp = my_set.find({"name": title})
+                if temp.count() != 0:
+                    continue
+
+                print(title)
+                a_tag.click()    
+
+                #选择标签
+                driver.switch_to_window(driver.window_handles[1])
+
+                content = driver.page_source
+                #page_source = content.encode("gbk","ignore").decode("gbk")
+                
+                content_elem = driver.find_element_by_class_name('n_cent')
+                temp = content_elem.get_attribute('innerHTML') #.encode("gbk","ignore").decode("gbk")
+
+                my_set.insert({'name': title, \
+                    'content': content_elem.get_attribute('innerText'), \
+                    'page_source': temp, \
+                    'date': date})
+                
+                #关闭标签
+                driver.close()
+                driver.switch_to_window(driver.window_handles[0])
+
+                time.sleep(0.5)
+
+            try:
+                elem = driver.find_element_by_xpath('//*[text()="下页"]')
+                elem.click()
+            except Exception as e:
+                break
         except Exception as e:
-            break
+            print(e)
 
-dir_part_one = make_dir('银监会机关')
-dir_part_two = make_dir('银监局')
-dir_part_three = make_dir('银监分局')
+    return True
 
+def run():
+    driver = utils.ChromeBrowser()
+    try:
+        catch_data(driver, 'http://www.cbrc.gov.cn/chinese/home/docViewPage/110002.html')
+        catch_data(driver, 'http://www.cbrc.gov.cn/zhuanti/xzcf/get2and3LevelXZCFDocListDividePage//1.html')
+        catch_data(driver, 'http://www.cbrc.gov.cn/zhuanti/xzcf/get2and3LevelXZCFDocListDividePage//2.html')
+        driver.quit()
+    except Exception as e:
+        driver.quit()
+        print('发生异常等待5秒自动重新调用函数.......')
+        time.sleep(5)
+        run()
 
-# driver = utils.ChromeBrowser()
-# run(driver, dir_part_one, 'http://www.cbrc.gov.cn/chinese/home/docViewPage/110002.html')
-# # run(driver, dir_part_two, 'http://www.cbrc.gov.cn/zhuanti/xzcf/get2and3LevelXZCFDocListDividePage//1.html')
-# # run(driver, dir_part_three, 'http://www.cbrc.gov.cn/zhuanti/xzcf/get2and3LevelXZCFDocListDividePage//2.html')
-# driver.quit()
+def search(text, start, end, page_index, record_count):
+    options = {
+                'page-size': 'Letter',
+                'margin-top': '0.75in',
+                'margin-right': '0.75in',
+                'margin-bottom': '0.75in',
+                'margin-left': '0.75in',
+                'encoding': "UTF-8",
+                'custom-header': [
+                    ('Accept-Encoding', 'gzip')
+                ],
+                'cookie': [
+                    ('cookie-name1', 'cookie-value1'),
+                    ('cookie-name2', 'cookie-value2'),
+                ],
+                'outline-depth': 10,
+            }
 
-def search(text, date_start, date_end):
-    for item in my_set.find( {'$and': [ {'date': {'$gte': date_start, '$lt': date_end}}, \
+    temp = start.split('-')
+    date_start = datetime.datetime(int(temp[0]), int(temp[1]), int(temp[2]))
+    temp = end.split('-')
+    date_end = datetime.datetime(int(temp[0]), int(temp[1]), int(temp[2]))
+
+    # file_name = utils.get_working_dir() + '/search_result.html'
+    search_result = temp = my_set.find( {'$and': [ {'date': {'$gte': date_start, '$lt': date_end}}, \
         {'content':{'$regex': text}} \
-        ] } ):
+        ] } )
 
-        print(item['name'])    
+    if page_index > 1:
+        search_result = temp.skip(page_index * record_count).limit(record_count)
+    else:
+        search_result = temp.limit(record_count)
 
-result = my_set.find({'content':{'$regex':"王凯"}})
-print(result.count())
-for item in result:
-    print(item['name'])
-    file_name = 'D:/IPA/external/search_result.html'
-    with open(file_name, "w") as f:
-        encoding = '<meta http-equiv="Content-Type" content="text/html; charset=gb2312">'
-        f.write(encoding)
-        f.write(item['page_source'].replace('黑体', '')) #.encode("gbk","ignore").decode("gbk"))
-        break
+    pdf_list = []
+    dir_pdf = make_dir('search_result')
+    result_string = '<meta charset="UTF-8">'
+    for item in search_result:
+        # result_string = '<meta charset="UTF-8">'
+        print(item['name'])
+        result_string += item['page_source'].replace('黑体', '')
 
-# import pdfkit
-# pdfkit.from_file('D:/IPA/external/search_result.html', 'search_result.pdf')
+    print('siting size: ', len(result_string))
+    pdf_path = dir_pdf + item['name'] + '.pdf'
+    pdfkit.from_string(result_string, pdf_path, options=options)
+    download_path = 'http://localhost:8080/cbrc/search_result/' + str(time.time()) + '.pdf'
+    pdf_list.append(download_path)
 
-start = datetime.datetime(2018, 1, 1)
-end = datetime.datetime(2018, 6, 1)
-# a = my_set.find({'date': {'$gte': start, '$lt': end}})
+    amount = math.ceil(temp.count() / record_count)
+    
+    return amount, pdf_list
 
-# print(start)
-# print(end)
+if __name__ == '__main__':
+    # dir_part_one = make_dir('银监会机关')
+    # dir_part_two = make_dir('银监局')
+    # dir_part_three = make_dir('银监分局')
 
-# print(a.count())
-# for item in my_set.find({'date': {'$gte': start, '$lt': end}}):
-#     print(item['name'])
 
-for item in my_set.find( {'$and': [ {'date': {'$gte': start, '$lt': end}}, \
-    {'content':{'$regex':"中国银行保险监督管理委员会"}} \
-    ] } ):
+    run()
 
-    print(item['name'])    
+    a = search('王凯', '2016-1-1', '2019-12-31', 1, 10)
+    print(a)

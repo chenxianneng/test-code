@@ -3,7 +3,6 @@ from io import open
 from pdfminer.converter import TextConverter
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFResourceManager, process_pdf
-import chardet
 import pickle
 import re
 from selenium import webdriver
@@ -13,6 +12,11 @@ import time
 import os
 from openpyxl import workbook
 from openpyxl import load_workbook
+from pymongo import MongoClient
+
+conn = MongoClient('localhost', 27017)
+db = conn.mydb
+my_set = db.fund_history
 
 def read_pdf(pdf_path):
     with open(pdf_path, "rb") as pdf:
@@ -82,24 +86,67 @@ def compare_pdf(contract_pdf_path, approval_pdf_path):
 
     return company, product
 
-company, product = compare_pdf('D:/IPA/external/基金对比资料/基金对比资料/广发9只基金/广发中证军工ETF联接C/基金合同.pdf', \
-    'D:/IPA/external/基金对比资料/基金对比资料/广发9只基金/广发中证军工ETF联接C/招募说明书201801.pdf')
+# company, product = compare_pdf('D:/IPA/external/基金对比资料/基金对比资料/广发9只基金/广发中证军工ETF联接C/基金合同.pdf', \
+#     'D:/IPA/external/基金对比资料/基金对比资料/广发9只基金/广发中证军工ETF联接C/招募说明书201801.pdf')
 
-def run(company, product, code):  
-    template_path = utils.get_working_dir() + '/template.xlsx'
+def create_excel(company, product, code, name, department):  
+    template_path = utils.get_working_dir() + '/基金审核.xlsx'
     w_workbook = load_workbook(template_path)
     sheets = w_workbook.sheetnames
     w_sheet = w_workbook[sheets[0]]
 
     w_sheet.cell(row = 6, column = 2).value = product.replace(" ", "").replace("\n", "")
-    content = '合规审查意见（法律合规部填写）：\n \n   根据业务侧提供的相关资料，本产品无重大法律合规风险，合规意见如下：\n   \n    \
-        一、本产品发行人为' + company + '，具有保监会颁发保险公司法人许可证，根据《关于规范商业银行代理销售业务的通知》（银监发2016[24]号）规定：商业银行可接受国务院证券监督管理机构管理并持有金融牌照的金融机构委托，在本行渠道向客户推介、销售合作机构依法发行的金融产品。\n      \n     \
-        二、经业务侧尽调，可于银保监会网站查询该产品。属于依法发行的保险产品。\n\n     \
-        三、合规提示\n    1.交互页面及关于产品功能的描述需经合作方确认；2.投诉、理赔需由合作方负责，并在合同中约定双方权责义务关系。\n    \n'
+
+    title = '微众银行合规审查申请表  \n（合规评审意见）\n                                编号：' + code
+    w_sheet.cell(row = 2, column = 1).value = title
+
+    content = '   合规审查意见（法律合规部填写）：\n \n    根据业务侧提供的相关资料，本产品无重大法律合规风险，合规意见如下：\n   \n    \
+    一、' + company + '拥有中国证券监督管理委员会颁发的“经营证券期货业务许可证”，发行方符合《关于规范商业银行代理销售业务的通知》所允许的商业银行代销产品发行机构，我行具有公募基金代销资格。\n    \n     \
+    二、产品是经中国证券监督管理委员会备案的公募基金产品，备案通过日期为2013年。\n\n     \
+    三、请业务侧严格按照《关于规范商业银行代理销售业务的通知》、《证券投资基金销售管理办法》开展产品销售活动。产品宣传页(如有)需另行送审法律合规部。\n     \n    \
+    四、产品上架后，做好产品存续期管理，及时更新产品重要公告。\n   '
+
+    # print(repr(w_sheet.cell(row = 2, column = 1).value))
+
     w_sheet.cell(row = 7, column = 1).value = content
 
     date = time.strftime("%Y-%m-%d", time.localtime())
-    w_sheet.cell(row = 19, column = 2).value = date
+    w_sheet.cell(row = 18, column = 2).value = date
+    w_sheet.cell(row = 3, column = 4).value = name
+    w_sheet.cell(row = 3, column = 2).value = department
 
-    save_path = utils.get_working_dir()  + '/合规评审表' + code + '(' + product + ')'
-    w_workbook.save(save_path)
+    file_name = ('合规评审表' + code + '(' + product + ')').strip().replace('\n','')
+    save_path = utils.get_working_dir() + '/' + file_name + '.xlsx'
+    temp = save_path.strip().replace('\n','')
+    w_workbook.save(temp)
+
+    return temp, file_name
+
+
+def run(contract_pdf_path, approval_pdf_path, code, name, department):
+    company, product = compare_pdf(contract_pdf_path, approval_pdf_path)
+    result_path, file_name = create_excel(company, product, code, name, department) 
+
+    date = time.strftime("%Y-%m-%d", time.localtime())
+    my_set.insert({'name': file_name, \
+    'result_path': result_path, \
+    'contract_pdf_path': contract_pdf_path, \
+    'approval_pdf_path': approval_pdf_path, \
+    'date': date})
+
+    return result_path, file_name
+
+def search_history(text, date_start, date_end):
+    for item in my_set.find( {'$and': [ {'date': {'$gte': date_start, '$lt': date_end}}, \
+    {'name':{'$regex': text}} \
+    ] } ):
+
+        print(item['name'])
+
+if __name__ == '__main__':
+    result_path, file_name = run('D:/IPA/external/基金对比资料/基金对比资料/广发9只基金/广发中证军工ETF联接C/基金合同.pdf', \
+        'D:/IPA/external/基金对比资料/基金对比资料/广发9只基金/广发中证军工ETF联接C/招募说明书201801.pdf', \
+        '11223344', '123', '456')
+
+    print(result_path)
+    print(file_name)

@@ -3,7 +3,6 @@ from io import open
 from pdfminer.converter import TextConverter
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFResourceManager, process_pdf
-import chardet
 import pickle
 import re
 from selenium import webdriver
@@ -13,7 +12,14 @@ import time
 import os
 from openpyxl import workbook
 from openpyxl import load_workbook
+import win32com.client
+import textract
+from pymongo import MongoClient
  
+conn = MongoClient('localhost', 27017)
+db = conn.mydb
+my_set = db.insurance_history
+
 products_info = {}
 
 def catch_data(driver, url):    
@@ -30,6 +36,9 @@ def catch_data(driver, url):
     for elem in elems:
         company = elem.get_attribute('innerText')
         print(company)
+
+        if company in products_info:
+            continue
         
         elem.click()
         driver.switch_to_window(driver.window_handles[1])
@@ -60,26 +69,31 @@ def catch_data(driver, url):
         
     return products_info
 
-def read_pdf(pdf_path):
-    with open(pdf_path, "rb") as pdf:
-        # resource manager
-        rsrcmgr = PDFResourceManager()
-        retstr = StringIO()
-        laparams = LAParams()
-        # device
-        device = TextConverter(rsrcmgr, retstr, laparams=laparams)
-        process_pdf(rsrcmgr, device, pdf)
-        device.close()
-        content = retstr.getvalue()
-        retstr.close()
+def read_file(path):
+    filename, file_extension = os.path.splitext(path)
+    if file_extension == '.pdf':
+        with open(path, "rb") as pdf:
+            # resource manager
+            rsrcmgr = PDFResourceManager()
+            retstr = StringIO()
+            laparams = LAParams()
+            # device
+            device = TextConverter(rsrcmgr, retstr, laparams=laparams)
+            process_pdf(rsrcmgr, device, pdf)
+            device.close()
+            content = retstr.getvalue()
+            retstr.close()
 
-        #fencoding = chardet.detect(content)
-        #print(fencoding)
-        # print(type(content), flush=True)
-        # lines = str(content).split("\n")
-        # return lines
-        return str(content)
- 
+            return str(content)
+    elif file_extension == '.doc':
+        word = win32com.client.Dispatch("Word.Application")
+        word.visible = False
+        wb = word.Documents.Open(path)
+        doc = word.ActiveDocument
+        return doc.Range().Text
+    elif file_extension == '.docx':
+        temp = textract.process(path)
+        return temp.decode()
  
 def re_find(key_word, content):
     try:
@@ -96,9 +110,9 @@ def re_find(key_word, content):
     except Exception as e:
         return []
 
-def get_produt_info_from_pdf(pdf_path):
+def get_produt_info(path):
     product_company, product_name = None, None
-    content = read_pdf(pdf_path)
+    content = read_file(path)
     products_data = pickle.load(open("product_info.p", "rb"))
 
     for company in products_data:
@@ -130,13 +144,30 @@ def get_produt_info_from_pdf(pdf_path):
 # driver.quit()
 # pickle.dump(result, open("product_info.p", "wb"))
 
-company, product = get_produt_info_from_pdf('d:/test2.pdf')   
+def auto_catch_data():
+    driver = utils.ChromeBrowser()
+    try:
+        result = catch_data(driver, 'http://bxjg.circ.gov.cn/tabid/6757/Default.aspx')
+        driver.quit()
 
-def run(company, product, code):
-    template_path = utils.get_working_dir() + '/template.xlsx'
+        driver = utils.ChromeBrowser()
+        result = catch_data(driver, 'http://bxjg.circ.gov.cn/tabid/6758/Default.aspx')
+        driver.quit()
+        pickle.dump(result, open("product_info.p", "wb"))
+    except Exception as e:
+        driver.quit()
+        print('发生异常等待5秒自动重新调用函数.......')
+        time.sleep(5)
+        auto_catch_data()
+
+def create_excel(company, product, code, name, department):
+    template_path = utils.get_working_dir() + '/保险审核.xlsx'
     w_workbook = load_workbook(template_path)
     sheets = w_workbook.sheetnames
     w_sheet = w_workbook[sheets[0]]
+
+    title = '微众银行合规审查申请表  \n（合规评审意见）\n                                编号：' + code
+    w_sheet.cell(row = 2, column = 1).value = title
 
     w_sheet.cell(row = 6, column = 2).value = product.replace(" ", "").replace("\n", "")
     content = '合规审查意见（法律合规部填写）：\n \n   根据业务侧提供的相关资料，本产品无重大法律合规风险，合规意见如下：\n   \n    \
@@ -147,17 +178,37 @@ def run(company, product, code):
 
     date = time.strftime("%Y-%m-%d", time.localtime()) 
     w_sheet.cell(row = 19, column = 2).value = date
+    w_sheet.cell(row = 3, column = 4).value = name
+    w_sheet.cell(row = 3, column = 2).value = department
 
-    save_path = utils.get_working_dir()  + '/合规评审表' + code + '(' + product + ')'
-    w_workbook.save(save_path)
+    file_name = ('合规评审表' + code + '(' + product + ')').strip().replace('\n','')
+    save_path = utils.get_working_dir() + '/' + file_name + '.xlsx'
+    temp = save_path.strip().replace('\n','')
+    w_workbook.save(temp)
 
-# import docx
+    return temp, file_name
+ 
+def run(file_path, code, name, department):
+    company, product = get_produt_info(file_path)   
+    result_path, file_name = create_excel(company, product, code, name, department)
 
-# def readtxt(filename):
-#     doc = docx.Document(filename)
-#     fullText = []
-#     for para in doc.paragraphs:
-#         fullText.append(para.text)
-#     return '\n'.join(fullText)
+    date = time.strftime("%Y-%m-%d", time.localtime())
+    my_set.insert({'name': file_name, \
+        'result_path': result_path, \
+        'file_path': file_path, \
+        'date': date})
 
-# print (readtxt('D:/IPA/external/We法.docx'))
+    return result_path, file_name
+
+def search_history(text, date_start, date_end):
+    for item in my_set.find( {'$and': [ {'date': {'$gte': date_start, '$lt': date_end}}, \
+    {'name':{'$regex': text}} \
+    ] } ):
+
+        print(item['name'])    
+
+if __name__ == '__main__':
+    # company, product = get_produt_info('d:/test2.pdf')   
+    # print(create_excel(company, product, '123456', 'asdf', 'qwer'))   
+    result_path, file_name = run('d:/test2.pdf', '123456', 'asdf', 'qwer')
+    print(result_path, file_name)
