@@ -1,0 +1,5 @@
+zip -r archive_name.zip filename    （-r是压缩文件）
+
+unzip archive_name.zip              （解压文件在当前文件下）
+
+unzip archive_name.zip -d new_dir   （解压文件可以将文件解压缩至一个你指定的的目录，使用-d参数）
