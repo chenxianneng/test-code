@@ -3,19 +3,12 @@ from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 import time
+from pymongo import MongoClient
+import re
 
-# driver = webdriver.Firefox()
-# url = "http://quote.cfi.cn/fhpx/19766/601985.html"
-# driver.get(url)
-
-# elem = driver.find_element_by_xpath("/html/body/form/table[1]/tbody/tr[2]/td[1]/div/div/div[16]/div[1]/nobr/font")
-# elem.click()
-
-# elem = driver.find_element_by_xpath('//*[@id="searchcode"]')
-# elem.click()
-# elem.send_keys('000001')
-# elem.send_keys(Keys.RETURN)
-
+conn = MongoClient('localhost', 27017)
+db = conn.mydb
+my_set = db.shares
 
 def string2Float(str):
     try:
@@ -45,7 +38,18 @@ for a_tag in a_tags:
     last = driver.find_element_by_xpath('//*[@id="last"]')
     temp = last.get_attribute('innerText')
     lastPrice = string2Float(temp[0:-1])
-    print(name, ': 股票最近的价格 ', lastPrice)
+    print(name, ': 当前股价 ', lastPrice)
+    # 股票详细信息
+    infos_table = driver.find_element_by_xpath('//*[@id="quotetab_stock"]')
+    # 市盈率
+    elem = infos_table.find_element_by_xpath('.//tbody/tr[3]/td[1]')
+    pe = elem.get_attribute('innerText')
+    print('市盈率：', pe)
+    # 市净率
+    elem = infos_table.find_element_by_xpath('.//tbody/tr[4]/td[1]')
+    pb = elem.get_attribute('innerText')
+    print('市净率：', pb)
+
     
     # 选择分红派息
     temp = driver.find_element_by_xpath('//*[@id="nodea26"]')
@@ -73,12 +77,35 @@ for a_tag in a_tags:
 
         if i > 1 and lastPrice > 1:
             # 打印股息    
-            print('平均股息：', totalAmount / (i - 1) /  (lastPrice * 10))
-            
+            averageRate = totalAmount / ((i - 1) / 2) /  (lastPrice * 10)
+            print('平均每10股派发分红：', round(totalAmount / ((i - 1) / 2), 2), '元    平均分红利率：', round(averageRate * 100, 2), '%')
+
+            # 市盈率
+            result = re.findall("\d+\.\d+", pe)
+            if len(result) > 0:
+                pe = result[0]
+            else:
+                pe = 0.0
+
+            # 市净率
+            result = re.findall("\d+\.\d+", pb)
+            if len(result) > 0:
+                pb = result[0]
+            else:
+                pb = 0.0       
+
+            # 把结果插入数据库
+            my_set.insert({'name': name, \
+            'lastPrice': lastPrice, \
+            'bonusRatio': round(averageRate, 4), \
+            'bonusAmountPerTen': round(totalAmount / ((i - 1) / 2), 2), \
+            'PE': pe, \
+            'PB': pb})           
+ 
+ 
     except Exception as e:
         print(e) 
 
     driver.close()
     driver.switch_to_window(driver.window_handles[0])
-    print('-------------------------------------------------------')
-
+    print('-------------------------------------------------------------------------------------')
