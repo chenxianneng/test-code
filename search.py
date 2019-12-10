@@ -6,5 +6,5 @@ conn = MongoClient('localhost', 27017)
 db = conn.mydb
 my_set = db.shares
 
-for item in my_set.find().sort('bonusRatio', DESCENDING).limit(10):
+for item in my_set.find().sort('分红利率', DESCENDING).limit(20):
     print(item)
