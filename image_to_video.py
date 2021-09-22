@@ -38,7 +38,7 @@ def convertjpg(jpgfile, outdir):
 
 import os
 import glob
-from natsort import natsorted
+# from natsort import natsorted
 from moviepy.editor import *
 from moviepy.audio.fx import all
 import random
@@ -72,7 +72,7 @@ def run(directory, back_ground_dir, out_dir):
     temp2 = glob.glob(out_dir + "*.png")
     file_list.extend(temp)
     file_list.extend(temp2)
-    file_list_sorted = natsorted(file_list, reverse=False)  # Sort the images
+    # file_list_sorted = natsorted(file_list, reverse=False)  # Sort the images
 
     music = AudioFileClip(back_ground_music)
     print('................................', music.duration)
@@ -80,7 +80,7 @@ def run(directory, back_ground_dir, out_dir):
     duratio_time = video_length / len(file_list)
 
     clips = [ImageClip(m).set_duration(duratio_time)
-             for m in file_list_sorted]
+             for m in file_list]
 
     concat_clip = concatenate_videoclips(clips, method="compose")
     #concat_clip = concat_clip.fx(vfx.loop, n = 2)
@@ -100,4 +100,4 @@ def run(directory, back_ground_dir, out_dir):
     #     shutil.rmtree(directory)
     # os.makedirs(directory)
     
-run('F:/test-code/youtube/video/', 'F:/test-code/youtube/video/', 'F:/test-code/youtube/video/')
+run('E:/music/', 'E:/music/', 'E:/music/')
